@@ -1,0 +1,80 @@
+2022
+11.02 initial idea
+12.02 got crypto working on a controller
+13.02 fuck serialport js
+
+crypto lib:
+https://github.com/rweather/arduinolibs/tree/master/libraries/Crypto
+http://rweather.github.io/arduinolibs/classBLAKE2s.html#a751a3d772cbe1cd1dad83dbd09853b1b
+
+
+
+adding src files as library:
+put Crypto folder in I:\Arduino\libraries
+then include header directly like 
+#include <AES.h>
+
+https://forum.arduino.cc/t/can-i-include-a-header-file-that-is-not-a-library/37468/2
+
+https://crypto.stackexchange.com/questions/83208/is-blake2b-vulnerable-to-length-extension-attacks
+we don't need pbkdf2 with blake2 as it's stated that it's secure against length extension attacks:
+`BLAKE2 is often faster than MD5, yet provides security similar to that of SHA-3: up to 256-bit collision resistance, immunity to length extension, indifferentiability from a random oracle, etc`
+
+
+add salt to mitigate rainbow table attack
+
+
+reasons to use pbkdf2
+https://crypto.stackexchange.com/questions/72918/how-is-pbkdf2-so-much-better-than-normal-hashing-or-even-using-hmac
+
+basically we need iterations -> computational cost
+
+pbkdf2 ref for our kdf function
+https://datatracker.ietf.org/doc/html/rfc2898#page-11
+
+
+arduino com port communication
+https://www.youtube.com/watch?v=8BWjyZxGr5o
+
+YOU CAN OPEN WEBSOCKET TO LOCALHOST!!!!!!!!!!!!!
+
+so make a js server app which connects web front page with the hardware via websocket wow
+
+to fix "Board at usb:0/140000/0/1 is not available"
+
+select: tools -> port
+
+0F F5 32 68 F8 7E 9D 0D 17 3A 39 20 E2 D6 4F EC 23 AA A7 5B B0 6A 8A F0 9A 01 80 22 AE B4 BE 9A
+0F F5 32 68 F8 7E 9D 0D 17 3A 39 20 E2 D6 4F EC 23 AA A7 5B
+
+^^^ the init problem with this was i forgot that block size is 128 and not 256 for all key sizes
+
+
+
+
+
+iv
+00 D6 B7 B5 31 06 05 E5 F3 A4 16 7C 5D 6C D7 CD
+00 DB 85 1D F0 B4 AD 1A 33 2C 0E E8 A1 D9 22 3D
+00 85 DF 8C 1C 28 56 E7 F8 CF D3 07 A1 64 57 A2 
+00 8E 78 97 97 0E 34 62 07 D7 5E 47 A1 58 29 8E
+00 42 EF C6 8E 14 AB F3 FC E7 E9 83 D0 B2 2B 51 
+
+1447009522853244928
+00 BB A0 5E AB 85 44 08 14 AF F3 2C 11 DF FC 53 
+
+iv starting with 00 problem
+
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA WHYYYYYYYY
+so i xored halves of u64 into u32, seems no annoying zero anymore,
+as the seed accepts u32 number
+
+
+
+
+
+
+why ofb? because it's not parallelizable for both decryption and encryption
++ it has same algorithm for both dec and enc which saves memory
+
+gcm (any authenticated encryption actually) doesn't seem to fit here because we don't want the user to provide some tag along with password
