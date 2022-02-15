@@ -2,7 +2,7 @@
 
 It should work on any Arduino IDE compatible microcontroller though
 
-Fun fact: this sketch uses 30324 bytes (94%) of Arduino 2.0 program memory
+Fun fact: this sketch uses 30324 bytes (94%) of Teensy 2.0 program memory
 
 ## Building
 
