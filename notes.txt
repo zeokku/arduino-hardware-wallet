@@ -86,3 +86,13 @@ well adding deriving pub and signing now it takes 102% of available storage T_T
 let's try to change sha3-> sha512 and then truncate to 256 bit so we get length-extension resistance
 yep worked like a charm
 "Sketch uses 28246 bytes (87%)"
+
+
+design flaw:
+since we send password from client machine it's possible for the attacker to both intercept the password AND call sign() function on the wallet?
+
+intercepting com packets via port proxy
+http://com0com.sourceforge.net/
+
+!!! emoji password concept (like imagine a scenery with emojies and it's actually the password)
+
