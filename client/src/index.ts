@@ -67,8 +67,17 @@ port.on("error", (err) => {
 // });
 
 port.on("data", (data: Buffer) => {
-  //console.log("Data:", data.join(" "));
+  /*
+this is guaranteed to have at least one byte
+we can create a buffer to concat input data based on this first byte
+the first byte is operation ID which would define how many more information we should receive
+*/
+
+  //let operation = data[0];
+
+  console.log("Data:", data.join(" "));
   console.log(new TextDecoder().decode(data));
+
   //   console.log(
   //     data
   //       .toString("hex")
@@ -80,7 +89,7 @@ port.on("data", (data: Buffer) => {
 //port.write(Buffer.from("gTestPasswordBruh"));
 
 //apparently buffer ignores \0 in strings bruuuu
-port.write(Buffer.from("sTestPasswordBruh"));
+port.write(Buffer.from("kTestPasswordBruh"));
 port.write(Buffer.from([0]));
 port.write(Buffer.from(new Uint8Array(32).fill(0x69, 0, 32)));
 // port.drain();

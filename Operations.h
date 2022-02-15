@@ -7,10 +7,18 @@ it needs to:
  store key,
  generate signature,
  export key,
- 
- generate key 
+
+ generate key
 */
 
 /*
 gen key -> encrypt, store
+*/
+
+/*
+__ generate key __
+input: g[Password]
+output: g[PublicKey : 32 bytes]
+
+
 */
