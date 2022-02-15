@@ -4,7 +4,11 @@
 #include <Ed25519.h>
 #include <SHA512.h>
 
+#define OP_FAILED byte(0)
+#define OP_SUCCESS byte(1)
+
 #define PASSWORD_MAX_LEN 32
+#define PASSWORD_BUF_LEN PASSWORD_MAX_LEN + 1
 
 #define TEST_DECRYPTION_IN_STORE 0
 
@@ -126,8 +130,8 @@ void setup()
 // read until end of input or \0
 // REPLACED BY Serial.readBytesUntil()
 // char* read_password() {
-//   char* password = new char[PASSWORD_MAX_LEN];
-//   memset(password, 0, PASSWORD_MAX_LEN);
+//   char* password = new char[PASSWORD_BUF_LEN];
+//   memset(password, 0, PASSWORD_BUF_LEN);
 
 //   //almost used 'byte' type here which could to problems since (byte)len is always < than 256
 //   //due to overflow which would allow 'infinite' input and buffer overwriting
@@ -144,13 +148,13 @@ void setup()
 //   // { if(n != -1) { write } read }
 //   // receive buffer holds up to 64 bytes: https://www.arduino.cc/reference/en/language/functions/communication/serial/available/
 
-//   while ( !(in == -1 || in == 0) && p < PASSWORD_MAX_LEN ) {
+//   while ( !(in == -1 || in == 0) && p < PASSWORD_BUF_LEN ) {
 //     password[p++] = in;
 
 //     in = Serial.read();
 //   }
 
-//   if (p == PASSWORD_MAX_LEN) {
+//   if (p == PASSWORD_BUF_LEN) {
 //     //@todo failwith: PASSWORD_OVER_MAX_LENGTH
 //   }
 //   else if (p < 8) {
@@ -172,36 +176,39 @@ void loop()
 
     switch (operation)
     {
+      // @todo
     case 'k': // store existing key // k[Password]\0[Key]
     {
-      Serial.println("Store key");
+      // Serial.println("Store key");
 
       char *password = 0;
 
       if (!read_password(password))
       {
-        Serial.println("Password is too short");
+        Serial.write(OP_FAILED);
+        Serial.println("Password is too short\0");
         return;
       }
 
-      byte *private_key = new byte[32];
-      memset(private_key, 0, 32);
-      // bruh this is so retarded why tf readBytes() has buf type of char and NOT FUCKING BYTE, so it yields a warning each fucking time
-      size_t key_len = Serial.readBytes(private_key, 32);
+      byte *private_key = new byte[KEY_LEN];
+      memset(private_key, 0, KEY_LEN);
 
-      if (key_len == 32)
+      // bruh this is so retarded why tf readBytes() has buf type of char and NOT FUCKING BYTE, so it yields a warning each fucking time
+      if (Serial.readBytes(private_key, KEY_LEN) == KEY_LEN)
       {
         store_key(private_key, password);
+        Serial.write(OP_SUCCESS);
       }
       else
       {
-        Serial.println("Invalid key");
+        Serial.write(OP_FAILED);
+        Serial.println("Invalid key\0");
       }
     }
     break;
     case 'g': // generate key // g[Password]
     {
-      Serial.println("Generate key");
+      // Serial.println("Generate key");
 
       char *password = 0;
 
@@ -211,19 +218,21 @@ void loop()
       }
       else
       {
-        Serial.println("Password is too short");
+        Serial.write(OP_FAILED);
+        Serial.println("Password is too short\0");
       }
     }
     break;
     case 's':
     { // sign payload // s[Password]\0[2bytes_PayloadLength][Payload]
-      Serial.println("Sign payload");
+      // Serial.println("Sign payload");
 
       char *password = 0;
 
       if (!read_password(password))
       {
-        Serial.println("Password is too short");
+        Serial.write(OP_FAILED);
+        Serial.println("Password is too short\0");
         return;
       }
 
@@ -231,12 +240,13 @@ void loop()
 
       if (Serial.readBytes((byte *)&payload_len, sizeof(uint16_t)) != 2)
       {
-        Serial.println("Error reading payload length");
+        Serial.write(OP_FAILED);
+        Serial.println("Error reading payload length\0");
         return;
       }
 
-      Serial.print("Payload size: ");
-      Serial.println(payload_len);
+      // Serial.print("Payload size: ");
+      // Serial.println(payload_len);
 
       //@todo do we need to set some limit for payload size?
       byte *payload = new byte[payload_len];
@@ -246,7 +256,8 @@ void loop()
       {
         delete[] payload;
 
-        Serial.println("Error reading payload");
+        Serial.write(OP_FAILED);
+        Serial.println("Error reading payload\0");
         return;
       }
 
@@ -261,9 +272,9 @@ void loop()
 
 bool read_password(char *&password)
 {
-  password = new char[PASSWORD_MAX_LEN];
-  memset(password, 0, PASSWORD_MAX_LEN);
-  size_t password_len = Serial.readBytesUntil(0, password, PASSWORD_MAX_LEN);
+  password = new char[PASSWORD_BUF_LEN];
+  memset(password, 0, PASSWORD_BUF_LEN);
+  size_t password_len = Serial.readBytesUntil(0, password, PASSWORD_MAX_LEN); // max len is buf len - 1 so we always have a null terminator
 
   if (password_len < 8)
   {
@@ -311,13 +322,13 @@ void zkdf(char *password, byte salt[SALT_LEN], byte result[KEY_LEN])
   */
 }
 
-/// clears private_key, password buffers after finished
+/// clears `private_key` and `password` buffers after finished
 /// password should be \0 terminated string
-void store_key(byte private_key[KEY_LEN], char password[PASSWORD_MAX_LEN])
+void store_key(byte private_key[KEY_LEN], char password[PASSWORD_BUF_LEN])
 {
 
   // Serial.print("Password bytes: ");
-  // print_bytes((byte *)password, PASSWORD_MAX_LEN);
+  // print_bytes((byte *)password, PASSWORD_BUF_LEN);
   // Serial.print("Password: ");
   // Serial.println(password);
 
@@ -334,7 +345,7 @@ void store_key(byte private_key[KEY_LEN], char password[PASSWORD_MAX_LEN])
   mem_write_bytes(salt, SALT_LEN, SALT_ADDRESS);
   delete[] salt;
 
-  memset(password, 0, PASSWORD_MAX_LEN);
+  memset(password, 0, PASSWORD_BUF_LEN);
   delete[] password;
 
   // block size
@@ -374,7 +385,7 @@ void store_key(byte private_key[KEY_LEN], char password[PASSWORD_MAX_LEN])
   delete[] encrypted;
 }
 
-void retrieve_key(byte private_key[KEY_LEN], char password[PASSWORD_MAX_LEN])
+void retrieve_key(byte private_key[KEY_LEN], char password[PASSWORD_BUF_LEN])
 {
   byte *encryption_key = new byte[KEY_LEN];
 
@@ -385,7 +396,7 @@ void retrieve_key(byte private_key[KEY_LEN], char password[PASSWORD_MAX_LEN])
 
   delete[] salt;
 
-  memset(password, 0, PASSWORD_MAX_LEN);
+  memset(password, 0, PASSWORD_BUF_LEN);
   delete[] password;
 
   byte *iv = new byte[IV_LEN];
@@ -406,21 +417,21 @@ void retrieve_key(byte private_key[KEY_LEN], char password[PASSWORD_MAX_LEN])
   delete[] encryption_key;
 }
 
-void sign_payload(char password[PASSWORD_MAX_LEN], byte *payload, uint16_t payload_len)
+void sign_payload(char password[PASSWORD_BUF_LEN], byte *payload, uint16_t payload_len)
 {
   byte *private_key = new byte[KEY_LEN];
   retrieve_key(private_key, password);
 
-  Serial.print("Private key retrieved: ");
-  print_bytes(private_key, KEY_LEN);
+  // Serial.print("Private key retrieved: ");
+  // print_bytes(private_key, KEY_LEN);
 
   //
 
   byte *public_key = new byte[KEY_LEN];
   Ed25519::derivePublicKey(public_key, private_key);
 
-  Serial.print("Public key: ");
-  print_bytes(public_key, KEY_LEN);
+  // Serial.print("Public key: ");
+  // print_bytes(public_key, KEY_LEN);
 
   byte *signature = new byte[64];
   Ed25519::sign(signature, private_key, public_key, payload, payload_len);
@@ -430,17 +441,17 @@ void sign_payload(char password[PASSWORD_MAX_LEN], byte *payload, uint16_t paylo
 
   delete[] public_key;
 
-  Serial.write(1);
   Serial.write('s');
+  Serial.write(1);
   Serial.write(signature, 64);
 
-  Serial.print("Signature: ");
-  print_bytes(signature, 64);
+  // Serial.print("Signature: ");
+  // print_bytes(signature, 64);
 
   delete[] signature;
 }
 
-void generate_key(char password[PASSWORD_MAX_LEN])
+void generate_key(char password[PASSWORD_BUF_LEN])
 {
   byte *private_key = new byte[KEY_LEN];
 
@@ -449,8 +460,11 @@ void generate_key(char password[PASSWORD_MAX_LEN])
   byte *public_key = new byte[KEY_LEN];
   Ed25519::derivePublicKey(public_key, private_key);
 
-  Serial.print("Private key: ");
-  print_bytes(private_key, KEY_LEN);
+  // Serial.print("Private key: ");
+  // print_bytes(private_key, KEY_LEN);
+
+  // Serial.print("Public key: ");
+  // print_bytes(public_key, KEY_LEN);
 
   store_key(private_key, password);
   // private is already 0 here, this caused incorrect public key printed
@@ -458,9 +472,6 @@ void generate_key(char password[PASSWORD_MAX_LEN])
   Serial.write('g'); // opcode
   Serial.write(1);   // true - request succeeded
   Serial.write(public_key, KEY_LEN);
-
-  Serial.print("Public key: ");
-  print_bytes(public_key, KEY_LEN);
 
   delete[] public_key;
 }
