@@ -1,6 +1,6 @@
 import { SerialPort } from "serialport";
 import Crypto from "crypto";
-import { numberToBytes } from "./utils.js";
+import { uint16ToBytes } from "./utils.js";
 
 const port = new SerialPort(
   {
@@ -89,11 +89,11 @@ the first byte is operation ID which would define how many more information we s
 
 //port.write(Buffer.from("gTestPasswordBruh"));
 
-let payload = "Test payload aboba";
+let payload = "Test payload aboba with new extra data to test";
 
 port.write("sTestPasswordBruh");
 port.write(Buffer.from([0]));
-port.write(Buffer.from(numberToBytes(payload.length)));
+port.write(Buffer.from(uint16ToBytes(payload.length)));
 port.write(Buffer.from(payload, "utf-8"));
 
 //apparently buffer ignores \0 in strings bruuuu

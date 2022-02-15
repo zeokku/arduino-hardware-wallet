@@ -1,5 +1,5 @@
 /// int16 only
-export const numberToBytes = (n: number) =>
+export const uint16ToBytes = (n: number) =>
   n
     .toString(16)
     .padStart(4, "0")

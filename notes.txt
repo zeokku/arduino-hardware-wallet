@@ -103,3 +103,5 @@ bruh nice challenge (in utils) of one line code for converting numbers into byte
 
 1.0 "Sketch uses 30324 bytes (94%)"
 dang
+
+https://en.wikipedia.org/wiki/Code_page_437
