@@ -1,7 +1,3 @@
-#define OP_HASH = 0x01;
-
-#define OP_STORE_KEY = 0x10;
-
 /*
 it needs to:
  store key,
@@ -16,9 +12,13 @@ gen key -> encrypt, store
 */
 
 /*
+
 __ generate key __
 input: g[Password]
-output: g[PublicKey : 32 bytes]
+output: g[Status : 1 byte bool][PublicKey : 32 bytes]
 
+__ sign payload __
+input: s[Password]\0[PayloadLength : 2 bytes int][Payload : PayloadLength bytes]
+output: s[Status : 1 byte bool][Signature : 64 bytes]
 
 */

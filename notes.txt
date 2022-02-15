@@ -97,3 +97,5 @@ http://com0com.sourceforge.net/
 !!! emoji password concept (like imagine a scenery with emojies and it's actually the password)
 
 @todo needs some memory address rotation so eeprom will serve longer (instead of writing to the same space each time)
+
+bruh nice challenge (in utils) of one line code for converting numbers into bytes little endian

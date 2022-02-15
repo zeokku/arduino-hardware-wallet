@@ -71,6 +71,19 @@ uint32_t generate_seed()
   return (long_seed >> 32) ^ (long_seed & uint32_t(-1));
 }
 
+void random_bytes(byte *buf, byte len)
+{
+  for (byte b = 0; b < len; b += 1)
+  {
+    byte r = random();
+
+    buf[b] = r;
+
+    // Serial.print(r);
+    // Serial.print(' ');
+  }
+}
+
 /// For a Teensy 2.0, Address can be 0 to 1023
 void mem_read_bytes(byte *buf, uint16_t len, uint16_t addr)
 {
@@ -173,6 +186,7 @@ void loop()
 
       byte *private_key = new byte[32];
       memset(private_key, 0, 32);
+      // bruh this is so retarded why tf readBytes() has buf type of char and NOT FUCKING BYTE, so it yields a warning each fucking time
       size_t key_len = Serial.readBytes(private_key, 32);
 
       if (key_len == 32)
@@ -297,19 +311,6 @@ void zkdf(char *password, byte salt[SALT_LEN], byte result[KEY_LEN])
   */
 }
 
-void random_bytes(byte *buf, byte len)
-{
-  for (byte b = 0; b < len; b += 1)
-  {
-    byte r = random();
-
-    buf[b] = r;
-
-    // Serial.print(r);
-    // Serial.print(' ');
-  }
-}
-
 /// clears private_key, password buffers after finished
 /// password should be \0 terminated string
 void store_key(byte private_key[KEY_LEN], char password[PASSWORD_MAX_LEN])
@@ -361,22 +362,6 @@ void store_key(byte private_key[KEY_LEN], char password[PASSWORD_MAX_LEN])
   // Serial.print("Encrypted:   ");
   // print_bytes(encrypted, 32);
 
-#if TEST_DECRYPTION_IN_STORE
-
-  aes = new OFB<AES256>();
-  aes->setKey(encryption_key, 32);
-  aes->setIV(iv, 16);
-
-  byte *decrypted = new byte[32];
-  aes->decrypt(decrypted, encrypted, 32);
-
-  delete aes;
-
-  Serial.print("Decrypted:   ");
-  print_bytes(decrypted, 32);
-  delete[] decrypted;
-#endif
-
   // clear key buffer with overwriting data
   // crypto lib automatically overwrites own internal buffers
   memset(private_key, 0, KEY_LEN);
@@ -426,7 +411,7 @@ void sign_payload(char password[PASSWORD_MAX_LEN], byte *payload, uint16_t paylo
   byte *private_key = new byte[KEY_LEN];
   retrieve_key(private_key, password);
 
-  Serial.print('Private key retrieved: ');
+  Serial.print("Private key retrieved: ");
   print_bytes(private_key, KEY_LEN);
 
   //
@@ -445,6 +430,10 @@ void sign_payload(char password[PASSWORD_MAX_LEN], byte *payload, uint16_t paylo
 
   delete[] public_key;
 
+  Serial.write(1);
+  Serial.write('s');
+  Serial.write(signature, 64);
+
   Serial.print("Signature: ");
   print_bytes(signature, 64);
 
@@ -457,16 +446,17 @@ void generate_key(char password[PASSWORD_MAX_LEN])
 
   Ed25519::generatePrivateKey(private_key);
 
-  Serial.print('Private key: ');
-  print_bytes(private_key, KEY_LEN);
-
-  store_key(private_key, password);
-
-  //
-
   byte *public_key = new byte[KEY_LEN];
   Ed25519::derivePublicKey(public_key, private_key);
 
+  Serial.print("Private key: ");
+  print_bytes(private_key, KEY_LEN);
+
+  store_key(private_key, password);
+  // private is already 0 here, this caused incorrect public key printed
+
+  Serial.write('g'); // opcode
+  Serial.write(1);   // true - request succeeded
   Serial.write(public_key, KEY_LEN);
 
   Serial.print("Public key: ");

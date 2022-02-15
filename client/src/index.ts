@@ -1,5 +1,6 @@
 import { SerialPort } from "serialport";
 import Crypto from "crypto";
+import { numberToBytes } from "./utils.js";
 
 const port = new SerialPort(
   {
@@ -75,21 +76,28 @@ the first byte is operation ID which would define how many more information we s
 
   //let operation = data[0];
 
-  console.log("Data:", data.join(" "));
+  //console.log("Data:", data.join(" "));
   console.log(new TextDecoder().decode(data));
 
   //   console.log(
   //     data
   //       .toString("hex")
-  //       .match(/[a-f0-9]{2}\B/g)
+  //       .match(/[a-f0-9]{2}/g)
   //       .join(" ")
   //   );
 });
 
 //port.write(Buffer.from("gTestPasswordBruh"));
 
-//apparently buffer ignores \0 in strings bruuuu
-port.write(Buffer.from("kTestPasswordBruh"));
+let payload = "Test payload aboba";
+
+port.write("sTestPasswordBruh");
 port.write(Buffer.from([0]));
-port.write(Buffer.from(new Uint8Array(32).fill(0x69, 0, 32)));
+port.write(Buffer.from(numberToBytes(payload.length)));
+port.write(Buffer.from(payload, "utf-8"));
+
+//apparently buffer ignores \0 in strings bruuuu
+// port.write(Buffer.from("kTestPasswordBruh"));
+// port.write(Buffer.from([0]));
+// port.write(Buffer.from(new Uint8Array(32).fill(0x69, 0, 32)));
 // port.drain();
