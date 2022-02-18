@@ -368,7 +368,7 @@ void zkdf(char *password, byte salt[SALT_LEN], byte result[KEY_LEN])
   delete[] payload;
 
   // nice we can truncate right in finalize()
-  hash->finalize(result, 32);
+  hash->finalize(result, KEY_LEN);
 
   delete hash;
 
