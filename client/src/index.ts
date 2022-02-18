@@ -127,6 +127,8 @@ the first byte is operation ID which would define how many more information we s
 
 //@todo how to clear password buffers from memory?
 
+// default encoding for Stream.write(string) is 'utf8'
+
 function generate_key(password: string) {
   port.write("g");
 
@@ -173,10 +175,17 @@ function export_private_key(password: string) {
   port.write(Buffer.from([0]));
 }
 
+//pub: 687899739d47f2f699dcd5f752cc0dacff90fc7ff1db55150ce288605354768b
+const pwd = "😳👉👈";
+//generate_key(pwd);
+
+//sig: 82c299ef66981464dc09c17d57d9f6beedc8821a41655abcef90d6cf006d9df2416d17627f1242007dc4b673ff79333f030e24f58a99f41d8e97e3820683eb01
+sign_payload(pwd, Buffer.from("aboba"));
+
 //export_public_key("TestPasswordBruh");
 //export_private_key("TestPasswordBruh");
 
-sign_payload("TestPasswordBruh", Buffer.from("Test payload 12345", "utf-8"));
+//sign_payload("TestPasswordBruh", Buffer.from("Test payload 12345", "utf-8"));
 
 //let payload = "Test payload aboba with new extra data to test";
 
