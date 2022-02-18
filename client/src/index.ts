@@ -1,6 +1,8 @@
 import { SerialPort } from "serialport";
 import Crypto from "crypto";
+
 import { uint16ToBytes } from "./utils.js";
+import { OP_RESULT } from "./error_codes.js";
 
 const port = new SerialPort(
   {
@@ -74,27 +76,115 @@ we can create a buffer to concat input data based on this first byte
 the first byte is operation ID which would define how many more information we should receive
 */
 
-  //let operation = data[0];
+  let opCode = String.fromCharCode(data[0]);
+  let opResult = data[1];
 
-  //console.log("Data:", data.join(" "));
-  console.log(new TextDecoder().decode(data));
+  if (opResult) {
+    console.log(`${opCode} operation failed!`);
+    console.log(OP_RESULT[opResult]);
+    return;
+  }
 
-  //   console.log(
-  //     data
-  //       .toString("hex")
-  //       .match(/[a-f0-9]{2}/g)
-  //       .join(" ")
-  //   );
+  switch (opCode) {
+    case "g":
+      {
+        console.log("Public key:");
+        console.log(data.slice(2).toString("hex"));
+      }
+      break;
+    case "s":
+      {
+        console.log("Signature success:");
+        console.log(data.slice(2).toString("hex"));
+      }
+      break;
+    case "k":
+      {
+        console.log("Key stored successfully");
+      }
+      break;
+    case "p":
+      {
+        console.log("Public key:");
+        console.log(data.slice(2).toString("hex"));
+      }
+      break;
+    case "x":
+      {
+        console.log("Private key:");
+        console.log(data.slice(2).toString("hex"));
+      }
+      break;
+    default:
+      {
+        console.log("NOT AN OPERATION");
+        console.log(new TextDecoder().decode(data));
+        console.log(data.length);
+      }
+      break;
+  }
 });
 
-//port.write(Buffer.from("gTestPasswordBruh"));
+//@todo how to clear password buffers from memory?
 
-let payload = "Test payload aboba with new extra data to test";
+function generate_key(password: string) {
+  port.write("g");
 
-port.write("sTestPasswordBruh");
-port.write(Buffer.from([0]));
-port.write(Buffer.from(uint16ToBytes(payload.length)));
-port.write(Buffer.from(payload, "utf-8"));
+  port.write(password);
+  port.write(Buffer.from([0]));
+  // \0 is optional when it's only password
+}
+
+function sign_payload(password: string, payload: Buffer) {
+  if (payload.length > 0xffff) {
+    console.log("Invalid payload length");
+  }
+
+  port.write("s");
+
+  port.write(password);
+  port.write(Buffer.from([0]));
+
+  port.write(Buffer.from(uint16ToBytes(payload.length)));
+
+  port.write(payload);
+}
+
+function store_key(password: string, private_key: Buffer) {
+  port.write("k");
+
+  port.write(password);
+  port.write(Buffer.from([0]));
+
+  port.write(private_key);
+}
+
+function export_public_key(password: string) {
+  port.write("p");
+
+  port.write(password);
+  port.write(Buffer.from([0]));
+}
+
+function export_private_key(password: string) {
+  port.write("x");
+
+  port.write(password);
+  port.write(Buffer.from([0]));
+}
+
+//export_public_key("TestPasswordBruh");
+//export_private_key("TestPasswordBruh");
+
+sign_payload("TestPasswordBruh", Buffer.from("Test payload 12345", "utf-8"));
+
+//let payload = "Test payload aboba with new extra data to test";
+
+//port.write("sTestPasswordBruh");
+//port.write("sBruh");
+//port.write(Buffer.from([0]));
+// port.write(Buffer.from(uint16ToBytes(payload.length)));
+// port.write(Buffer.from(payload, "utf-8"));
 
 //apparently buffer ignores \0 in strings bruuuu
 // port.write(Buffer.from("kTestPasswordBruh"));

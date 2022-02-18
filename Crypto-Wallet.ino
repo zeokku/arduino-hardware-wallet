@@ -4,8 +4,17 @@
 #include <Ed25519.h>
 #include <SHA512.h>
 
-#define OP_FAILED byte(0)
-#define OP_SUCCESS byte(1)
+#define BUILD_ALLOW_PRIVATE_EXPORT 0
+
+enum OP_RESULT : byte
+{
+  SUCCESS = 0,
+  PASSWORD_TOO_SHORT,
+  INVALID_PASSWORD,
+  INVALID_KEY,
+  INVALID_PAYLOAD_LENGTH,
+  INVALID_PAYLOAD,
+};
 
 #define PASSWORD_MAX_LEN 32
 #define PASSWORD_BUF_LEN PASSWORD_MAX_LEN + 1
@@ -28,7 +37,7 @@
 #define STORAGE_BLOCK_LEN ENCRYPTED_KEY_ADDRESS + KEY_LEN
 
 #pragma region utils
-const int ledPin = 11;
+// const int ledPin = 11;
 
 void print_bytes(byte *buf, uint16_t len)
 {
@@ -121,8 +130,8 @@ void setup()
   uint32_t seed = generate_seed();
   randomSeed(seed);
 
-  Serial.print("👽");
-  Serial.println("🍆");
+  // Serial.print("👽");
+  // Serial.print("🍆");
 }
 
 #pragma region outdated read_password
@@ -185,9 +194,11 @@ void loop()
 
       if (!read_password(password))
       {
-        Serial.write(OP_FAILED);
-        Serial.println("Password is too short\0");
-        return;
+        Serial.write('k');
+        Serial.write(OP_RESULT::PASSWORD_TOO_SHORT);
+        // Serial.print("Password is too short\0");
+
+        break;
       }
 
       byte *private_key = new byte[KEY_LEN];
@@ -197,12 +208,15 @@ void loop()
       if (Serial.readBytes(private_key, KEY_LEN) == KEY_LEN)
       {
         store_key(private_key, password);
-        Serial.write(OP_SUCCESS);
+
+        Serial.write('k');
+        Serial.write(OP_RESULT::SUCCESS);
       }
       else
       {
-        Serial.write(OP_FAILED);
-        Serial.println("Invalid key\0");
+        Serial.write('k');
+        Serial.write(OP_RESULT::INVALID_KEY);
+        // Serial.print("Invalid key\0");
       }
     }
     break;
@@ -218,8 +232,9 @@ void loop()
       }
       else
       {
-        Serial.write(OP_FAILED);
-        Serial.println("Password is too short\0");
+        Serial.write('g');
+        Serial.write(OP_RESULT::PASSWORD_TOO_SHORT);
+        // Serial.print("Password is too short\0");
       }
     }
     break;
@@ -231,18 +246,21 @@ void loop()
 
       if (!read_password(password))
       {
-        Serial.write(OP_FAILED);
-        Serial.println("Password is too short\0");
-        return;
+        Serial.write('s');
+        Serial.write(OP_RESULT::PASSWORD_TOO_SHORT);
+        // Serial.print("Password is too short\0");
+        break;
       }
 
       uint16_t payload_len = 0;
 
-      if (Serial.readBytes((byte *)&payload_len, sizeof(uint16_t)) != 2)
+      if (Serial.readBytes((byte *)&payload_len, sizeof(uint16_t)) != 2 || payload_len == 0)
       {
-        Serial.write(OP_FAILED);
-        Serial.println("Error reading payload length\0");
-        return;
+        Serial.write('s');
+        Serial.write(OP_RESULT::INVALID_PAYLOAD_LENGTH);
+        // Serial.print("Error reading payload length\0");
+
+        break;
       }
 
       // Serial.print("Payload size: ");
@@ -256,17 +274,58 @@ void loop()
       {
         delete[] payload;
 
-        Serial.write(OP_FAILED);
-        Serial.println("Error reading payload\0");
-        return;
+        Serial.write('s');
+        Serial.write(OP_RESULT::INVALID_PAYLOAD);
+        // Serial.print("Error reading payload\0");
+
+        break;
       }
 
       sign_payload(password, payload, payload_len);
     }
     break;
-    default:
-      Serial.write(operation);
+    case 'p':
+    {
+      char *password = 0;
+
+      if (read_password(password))
+      {
+        export_public_key(password);
+      }
+      else
+      {
+        Serial.write('p');
+        Serial.write(OP_RESULT::INVALID_PASSWORD);
+        // Serial.print("Password is too short\0");
+        break;
+      }
     }
+    break;
+#if BUILD_ALLOW_PRIVATE_EXPORT
+    case 'x':
+    {
+      char *password = 0;
+
+      if (read_password(password))
+      {
+        export_private_key(password);
+      }
+      else
+      {
+        Serial.write('x');
+        Serial.write(OP_RESULT::INVALID_PASSWORD);
+        // Serial.print("Password is too short\0");
+        break;
+      }
+    }
+    break;
+#endif BUILD_ALLOW_PRIVATE_EXPORT
+      // default:
+      //  Serial.write(operation);
+    }
+
+    // clear unused input
+    Serial.clear();
   }
 }
 
@@ -385,6 +444,7 @@ void store_key(byte private_key[KEY_LEN], char password[PASSWORD_BUF_LEN])
   delete[] encrypted;
 }
 
+/// clears `password` buffer
 void retrieve_key(byte private_key[KEY_LEN], char password[PASSWORD_BUF_LEN])
 {
   byte *encryption_key = new byte[KEY_LEN];
@@ -417,6 +477,39 @@ void retrieve_key(byte private_key[KEY_LEN], char password[PASSWORD_BUF_LEN])
   delete[] encryption_key;
 }
 
+void export_public_key(char password[PASSWORD_BUF_LEN])
+{
+  byte *private_key = new byte[KEY_LEN];
+  retrieve_key(private_key, password);
+
+  byte *public_key = new byte[KEY_LEN];
+  Ed25519::derivePublicKey(public_key, private_key);
+
+  memset(private_key, 0, KEY_LEN);
+  delete[] private_key;
+
+  Serial.write('p');                // opcode
+  Serial.write(OP_RESULT::SUCCESS); // request succeeded
+  Serial.write(public_key, KEY_LEN);
+
+  delete[] public_key;
+}
+
+#if BUILD_ALLOW_PRIVATE_EXPORT
+void export_private_key(char password[PASSWORD_BUF_LEN])
+{
+  byte *private_key = new byte[KEY_LEN];
+  retrieve_key(private_key, password);
+
+  Serial.write('x');                // opcode
+  Serial.write(OP_RESULT::SUCCESS); // request succeeded
+  Serial.write(private_key, KEY_LEN);
+
+  memset(private_key, 0, KEY_LEN);
+  delete[] private_key;
+}
+#endif BUILD_ALLOW_PRIVATE_EXPORT
+
 void sign_payload(char password[PASSWORD_BUF_LEN], byte *payload, uint16_t payload_len)
 {
   byte *private_key = new byte[KEY_LEN];
@@ -442,7 +535,7 @@ void sign_payload(char password[PASSWORD_BUF_LEN], byte *payload, uint16_t paylo
   delete[] public_key;
 
   Serial.write('s');
-  Serial.write(1);
+  Serial.write(OP_RESULT::SUCCESS);
   Serial.write(signature, 64);
 
   // Serial.print("Signature: ");
@@ -470,7 +563,7 @@ void generate_key(char password[PASSWORD_BUF_LEN])
   // private is already 0 here, this caused incorrect public key printed
 
   Serial.write('g'); // opcode
-  Serial.write(1);   // true - request succeeded
+  Serial.write(OP_RESULT::SUCCESS);
   Serial.write(public_key, KEY_LEN);
 
   delete[] public_key;

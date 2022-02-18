@@ -2,7 +2,7 @@
 
 It should work on any Arduino IDE compatible microcontroller though
 
-Fun fact: this sketch uses 30324 bytes (94%) of Teensy 2.0 program memory
+Fun fact: this sketch uses 30308 bytes (93%) of Teensy 2.0 program memory
 
 ## Building
 
@@ -14,7 +14,7 @@ You will need Arduino IDE for building the firmware
 
 2. Open `Crypto-Wallet.ino` and upload it to your microcontroller
 
-Client is not finished yet and currently only suitable for testing, you can test calling operations from it
+Client is not finished yet and currently only suitable for testing, but you can check existing test calls for all operations there, so you could easily implement own client
 
 ### _Client:_
 
@@ -25,29 +25,56 @@ Client is not finished yet and currently only suitable for testing, you can test
 
 ## Operations
 
-You can either generate a private key directly on MC so it never leaves its internal memory or you can write existing key
+All operations and their results are prefixed with `operation code` which corresponds to specific ASCII character.
 
-### _Generating a new key:_
+In result 2nd byte will be `operation result` and its code corresponds to the following enum (found in `src/error_codes.ts`):
+
+```
+  "Success", // 0
+  "Password is too short",
+  "Invalid password",
+  "Invalid key",
+  "Invalid payload length",
+  "Invalid payload",
+```
+
+You may check `client/src/index.ts` for operation examples and result handling
+
+You have two options. You can either generate a private key directly on MC so it never leaves its internal memory, unless you export it - check `BUILD_ALLOW_PRIVATE_EXPORT` macro to enable/disable this. Or you also can store already existing key.
+
+### g | _Generating a new key:_
 
 **input:** `g[Password : string]`
 
-**output**: `g[Status : 1 byte bool]( [PublicKey : 32 bytes] - true | [FailReason : string]\0 - false )`
+**output**: `g[OperationResult : byte](PublicKey : 32 bytes)`
 
-### _Storing existing key:_
+### k | _Storing existing key:_
 
-**input**: `k[Password : string]\0[Key : 32 bytes]`
+**input**: `k[Password : string]\0[PublicKey : 32 bytes]`
 
-**output**: `k[Status : 1 byte bool]( *empty* - true | [FailReason : string]\0 - false)`
+**output**: `k[OperationResult : byte]`
 
-Currently there's no way to check if password was correct. So it's advised to test the signature with your saved public key
+### s | _Signing payload:_
 
-### _Signing payload:_
+<u>Currently there's no way to check if password was correct. So it's advised to test the signature with your saved public key</u>
 
-**input**: `s[Password : string]\0[PayloadLength : 2 bytes int le][Payload : PayloadLength bytes]`
+**input**: `s[Password : string]\0[PayloadLength : uint16 le][Payload : PayloadLength bytes]`
 
-**output**: `s[Status : 1 byte bool]( [Signature : 64 bytes] - true | [FailReason : \0 terminated] - false )`
+**output**: `s[OperationResult : byte](Signature : 64 bytes)`
 
-You can check `client/src/index.ts` for operation examples
+### p | _Exporting public key:_
+
+**input**: `p[Password : string]`
+
+**output**: `p[OperationResult : byte](PublicKey : 32 bytes)`
+
+### x | _Exporting private key:_
+
+This option is disabled by default, to enable private key export entrypoint set `BUILD_ALLOW_PRIVATE_EXPORT` to 1
+
+**input**: `x[Password : string]`
+
+**output**: `x[OperationResult : byte](PrivateKey : 32 bytes)`
 
 ## Cryptography
 
