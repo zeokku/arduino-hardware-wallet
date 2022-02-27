@@ -140,6 +140,7 @@ function generate_key(password: string) {
 function sign_payload(password: string, payload: Buffer) {
   if (payload.length > 0xffff) {
     console.log("Invalid payload length");
+    return;
   }
 
   port.write("s");
